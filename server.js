@@ -18,7 +18,8 @@ function descargarYDescomprimir(nombreJuego, fileId) {
 
     if (!fs.existsSync(destinoJuego)) {
         console.log(`[Cloud Engine] Descargando ${nombreJuego} desde Google Drive...`);
-        const urlDirecta = `https://docs.google.com/uc?export=download&id=${fileId}`;
+        // URL corregida con confirm=t para descarga directa forzada
+        const urlDirecta = `https://docs.google.com/uc?export=download&confirm=t&id=${fileId}`;
         const file = fs.createWriteStream(archivoZipLocal);
 
         https.get(urlDirecta, function(response) {
