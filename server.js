@@ -57,11 +57,9 @@ function finalizarDescarga(fileStream, zipPath, destinoPath, nombreJuego) {
     });
 }
 
-// 📌 CONFIGURACIÓN DE JUEGOS CON TUS IDS DE GOOGLE DRIVE:
-// Reemplaza 'ID_RECONQUISTA' y 'ID_KUNOICHI' por el ID de tus archivos compartidos
-// Ejemplo: descargarYDescomprimir('reconquista', '1A2b3C4d5E6f7G8h9I0j');
-// descargarYDescomprimir('reconquista', 'TU_ID_DE_GOOGLE_DRIVE_RECONQUISTA');
-// descargarYDescomprimir('kunoichi', 'TU_ID_DE_GOOGLE_DRIVE_KUNOICHI');
+// 📌 JUEGOS CONECTADOS A GOOGLE DRIVE:
+descargarYDescomprimir('reconquista', '16swqXpHUI2Dmh4pp2Z9VWXWC5SmPcCik');
+descargarYDescomprimir('kunoichi', '1Vmojmgmausk4WXXxxldKRu9G13S7KtqR');
 
 // Servir archivos estáticos descomprimidos
 app.use(express.static(gamesDir));
