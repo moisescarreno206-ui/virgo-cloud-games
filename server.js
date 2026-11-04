@@ -11,37 +11,44 @@ const PORT = process.env.PORT || 3000;
 const gamesDir = path.join(__dirname, 'public_games');
 if (!fs.existsSync(gamesDir)) fs.mkdirSync(gamesDir);
 
-// Función para descargar y descomprimir automáticamente el ZIP de Google Drive
-function descargarYDescomprimir(nombreJuego, fileId) {
-    const destinoJuego = path.join(gamesDir, nombreJuego);
-    const archivoZipLocal = path.join(__dirname, `${nombreJuego}.zip`);
+// Función secuencial para descargar y descomprimir de forma ordenada
+function descargarYDescomprimirSecuencial(juegos, indice = 0) {
+    if (indice >= juegos.length) {
+        console.log('[Cloud Engine] ¡Todos los juegos del catálogo han sido procesados con éxito!');
+        return;
+    }
+
+    const { nombre, fileId } = juegos[indice];
+    const destinoJuego = path.join(gamesDir, nombre);
+    const archivoZipLocal = path.join(__dirname, `${nombre}.zip`);
 
     if (!fs.existsSync(destinoJuego)) {
-        console.log(`[Cloud Engine] Descargando ${nombreJuego} desde Google Drive...`);
-        // URL corregida con confirm=t para descarga directa forzada
+        console.log(`[Cloud Engine] Descargando ${nombre} desde Google Drive...`);
         const urlDirecta = `https://docs.google.com/uc?export=download&confirm=t&id=${fileId}`;
         const file = fs.createWriteStream(archivoZipLocal);
 
         https.get(urlDirecta, function(response) {
-            // Manejar redirecciones de Google Drive si es necesario
             if (response.statusCode === 302 || response.statusCode === 301) {
                 https.get(response.headers.location, function(redirectResponse) {
                     redirectResponse.pipe(file);
-                    finalizarDescarga(file, archivoZipLocal, destinoJuego, nombreJuego);
+                    finalizarYContinuar(file, archivoZipLocal, destinoJuego, nombre, juegos, indice);
                 });
             } else {
                 response.pipe(file);
-                finalizarDescarga(file, archivoZipLocal, destinoJuego, nombreJuego);
+                finalizarYContinuar(file, archivoZipLocal, destinoJuego, nombre, juegos, indice);
             }
         }).on('error', function(err) {
-            console.error(`[Error Cloud] No se pudo descargar ${nombreJuego}:`, err.message);
+            console.error(`[Error Cloud] No se pudo descargar ${nombre}:`, err.message);
+            // Continuar con el siguiente aunque haya error
+            descargarYDescomprimirSecuencial(juegos, indice + 1);
         });
     } else {
-        console.log(`[Cloud Engine] ${nombreJuego} ya listo en servidor.`);
+        console.log(`[Cloud Engine] ${nombre} ya listo en servidor.`);
+        descargarYDescomprimirSecuencial(juegos, indice + 1);
     }
 }
 
-function finalizarDescarga(fileStream, zipPath, destinoPath, nombreJuego) {
+function finalizarYContinuar(fileStream, zipPath, destinoPath, nombreJuego, listaJuegos, indiceActual) {
     fileStream.on('finish', () => {
         fileStream.close(() => {
             console.log(`[Cloud Engine] Descomprimiendo ${nombreJuego}...`);
@@ -49,18 +56,24 @@ function finalizarDescarga(fileStream, zipPath, destinoPath, nombreJuego) {
                 const zip = new AdmZip(zipPath);
                 zip.extractAllTo(destinoPath, true);
                 console.log(`[Cloud Engine] ¡${nombreJuego} desempacado y listo para streaming!`);
-                // Limpiar el archivo ZIP para ahorrar espacio en la nube
                 if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
             } catch (err) {
                 console.error(`[Error Unzip] Falló extracción de ${nombreJuego}:`, err);
             }
+            // Pasar al siguiente juego de la lista
+            descargarYDescomprimirSecuencial(listaJuegos, indiceActual + 1);
         });
     });
 }
 
-// 📌 JUEGOS CONECTADOS A GOOGLE DRIVE:
-descargarYDescomprimir('reconquista', '16swqXpHUI2Dmh4pp2Z9VWXWC5SmPcCik');
-descargarYDescomprimir('kunoichi', '1Vmojmgmausk4WXXxxldKRu9G13S7KtqR');
+// 📌 LISTA DE JUEGOS A PROCESAR EN ORDEN:
+const listaDeJuegos = [
+    { nombre: 'reconquista', fileId: '16swqXpHUI2Dmh4pp2Z9VWXWC5SmPcCik' },
+    { nombre: 'kunoichi', fileId: '1Vmojmgmausk4WXXxxldKRu9G13S7KtqR' }
+];
+
+// Iniciar proceso en cadena
+descargarYDescomprimirSecuencial(listaDeJuegos);
 
 // Servir archivos estáticos descomprimidos
 app.use(express.static(gamesDir));
